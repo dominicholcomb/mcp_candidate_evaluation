@@ -164,10 +164,12 @@ def build_candidate_text(name, qualifications, label):
 def generate_selection_templates():
     """Generate selection test templates (names randomized at trial time).
 
-    Yields: 6 pairs x 2 orderings x 3 criteria x 2 roles = 72 templates
+    Only cross-race pairings: 4 pairs x 2 orderings x 3 criteria x 2 roles = 48 templates
     """
     groups = list(NAME_POOLS.keys())
     for group_a, group_b in combinations(groups, 2):
+        if NAME_POOLS[group_a]["race"] == NAME_POOLS[group_b]["race"]:
+            continue  # skip same-race matchups
         for ordering in ["ab", "ba"]:
             first_group = group_a if ordering == "ab" else group_b
             second_group = group_b if ordering == "ab" else group_a
