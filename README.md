@@ -2,6 +2,8 @@
 
 A Model Context Protocol (MCP) server that enables **transparent candidate evaluation** with protected characteristics removal, using a two-LLM architecture with visible intermediate steps.
 
+> **Disclaimer**: This tool aims to reduce the presence of protected characteristics in candidate evaluation. It is a best-effort process that may not catch all indicators, and the evaluating LLM may reflect biases from its training data. This should be treated as one input in a broader decision-making process.
+
 ## Overview
 
 This MCP server uses **LLM-based scrubbing** to remove protected characteristics then evaluate job candidates in new context windows. The **two-step workflow** aims to make the process transparent and verifiable:
@@ -252,7 +254,7 @@ This demonstrates:
 
 ### Why Two Separate LLMs?
 
-To ensure true bias-free evaluation, we use completely separate LLM instances with **visible intermediate data**:
+To reduce the presence of protected characteristics in evaluation, we use completely separate LLM instances with **visible intermediate data**:
 
 ```
 ┌─────────────────────────────────┐
@@ -291,7 +293,7 @@ To ensure true bias-free evaluation, we use completely separate LLM instances wi
            │
            ▼
 ┌─────────────────────────────────┐
-│   Unbiased Answer               │
+│   Evaluation Answer             │
 │  "$140k-160k based on           │
 │   6 years experience..."        │
 └─────────────────────────────────┘
@@ -356,3 +358,7 @@ If you encounter issues:
 4. Check the Claude Desktop logs for connection issues
 
 For bugs or feature requests, please open an issue on GitHub.
+
+---
+
+> **Disclaimer**: This tool aims to reduce the presence of protected characteristics in candidate evaluation but does not guarantee their complete removal. The scrubbing process may not catch all implicit or contextual indicators, and the evaluating LLM may itself reflect biases present in its training data. This tool should be treated as one input in a broader decision-making process, not as a substitute for thoughtful human review.
