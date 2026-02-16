@@ -156,6 +156,7 @@ def _get_scrubbing_prompt(categories: Optional[List[ProtectedCategory]] = None) 
 
 **Important guidelines:**
 1. **Rewrite, don't just redact**: Replace biased terms with neutral ones
+   - All personal names → "the candidate" (single person) or "Candidate A", "Candidate B", etc. (multiple people). Names can signal gender, race, or ethnicity.
    - "HBCU" → "university"
    - "she led the team" → "led the team"
    - "35-year-old" → remove entirely or replace with "experienced"
@@ -165,6 +166,7 @@ def _get_scrubbing_prompt(categories: Optional[List[ProtectedCategory]] = None) 
 3. **Be thorough**: Catch both explicit and implicit bias indicators
 4. **Natural language**: The result should read naturally, not have obvious gaps
 5. **Context-aware**: Understand when terms have multiple meanings
+6. **Multiple candidates**: If the text contains multiple candidates, replace each person's name with a neutral sequential label (Candidate A, Candidate B, etc.) and preserve the list structure
 
 Return ONLY the scrubbed text, with no explanations or metadata."""
 
