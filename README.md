@@ -176,11 +176,11 @@ over meetings. Applying for Senior Software Developer at a remote-first company.
 Tool: scrub_protected_characteristics
 Request: [original text with protected characteristics]
 Response: {
-  "scrubbed_text": "Alex Kim. BS in Computer Science from UC Berkeley.
-   4 years experience as a backend developer at two startups. Strong in
-   Python, Go, and Kubernetes. Contributed to 3 open-source projects.
-   Prefers written communication over meetings. Applying for Senior
-   Software Developer at a remote-first company."
+  "scrubbed_text": "The candidate holds a BS in Computer Science from UC
+Berkeley. Has 4 years of experience as a backend developer at two startups.
+Demonstrates strong proficiency in Python,    Go, and Kubernetes. Has
+contributions to 3 open-source projects. Prefers written communication over
+meetings. Applying for Senior Software Developer at a remote-first company."
 }
 ```
 
