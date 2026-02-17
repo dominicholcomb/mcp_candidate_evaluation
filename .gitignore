@@ -12,6 +12,13 @@ build/
 *.key
 claude_desktop_config.json
 
+# Benchmark results (regenerate with runner.py / runner_v2.py)
+evaluation/benchmark/results/
+evaluation/benchmark/*_executed.ipynb
+
+# Claude Code
+.claude/
+
 # IDE
 .vscode/
 .idea/

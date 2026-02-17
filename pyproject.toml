@@ -1,7 +1,7 @@
 [project]
 name = "candidate-evaluation-mcp"
 version = "0.1.0"
-description = "MCP server for candidate evaluation that removes protected characteristics using a two-LLM architecture"
+description = "MCP server for candidate evaluation that aims to reduce the presence of protected characteristics using a two-LLM architecture"
 readme = "README.md"
 requires-python = ">=3.10"
 dependencies = [
@@ -16,6 +16,13 @@ dev = [
     "pytest>=8.0.0",
     "pytest-asyncio>=0.23.0",
 ]
+openai = [
+    "openai>=1.0.0",
+]
+
+[project.urls]
+Homepage = "https://github.com/dominicholcomb/mcp_candidate_evaluation"
+Repository = "https://github.com/dominicholcomb/mcp_candidate_evaluation"
 
 [build-system]
 requires = ["setuptools>=68.0.0", "wheel"]

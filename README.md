@@ -52,7 +52,7 @@ The scrubber removes:
 ### Requirements
 
 - Python 3.10 or higher
-- Anthropic API key (for LLM-based scrubbing and evaluation)
+- Anthropic API key (default) or OpenAI API key (optional alternative provider)
 
 ### Setup
 
@@ -61,12 +61,17 @@ The scrubber removes:
 pip install -r requirements.txt
 ```
 
-Or manually:
+Or install as a package:
 ```bash
-pip install mcp>=1.0.0 pydantic>=2.0.0 httpx>=0.27.0 anthropic>=0.39.0
+pip install -e .
 ```
 
-2. Set your Anthropic API key:
+To use OpenAI as the LLM provider:
+```bash
+pip install -e ".[openai]"
+```
+
+2. Set your API key:
 ```bash
 export ANTHROPIC_API_KEY='your-key-here'
 ```
@@ -85,10 +90,29 @@ Add to your Claude Desktop config (`~/Library/Application Support/Claude/claude_
     "candidate-evaluation": {
       "command": "python3",
       "args": [
-        "/path/to/mcp-server-project-1/server.py"
+        "/path/to/server.py"
       ],
       "env": {
         "ANTHROPIC_API_KEY": "your-api-key-here"
+      }
+    }
+  }
+}
+```
+
+To use OpenAI instead:
+```json
+{
+  "mcpServers": {
+    "candidate-evaluation": {
+      "command": "python3",
+      "args": [
+        "/path/to/server.py"
+      ],
+      "env": {
+        "MODEL_PROVIDER": "openai",
+        "MODEL_NAME": "gpt-4o",
+        "OPENAI_API_KEY": "your-openai-key-here"
       }
     }
   }
@@ -228,27 +252,17 @@ Reasoning:
 
 ## Testing
 
-Run the included test files to verify functionality:
+Run the included test files to verify functionality (requires `ANTHROPIC_API_KEY`):
 
 ### Test LLM scrubbing and evaluation:
 ```bash
-python test_llm_scrubbing.py
+python evaluation/test_llm_scrubbing.py
 ```
-
-This demonstrates:
-- Intelligent rewriting (HBCU → university)
-- Two-LLM separation (no shared conversation history)
-- Passing user questions to the evaluator
 
 ### Test unified workflow:
 ```bash
-python test_unified_workflow.py
+python evaluation/test_unified_workflow.py
 ```
-
-This demonstrates:
-- Scrubbing protected characteristics
-- Passing multiple user questions to evaluator
-- Getting direct answers to specific evaluation questions
 
 ## Architecture
 
@@ -307,20 +321,19 @@ To reduce the presence of protected characteristics in evaluation, we use comple
 4. **Visible intermediate data** - You can verify what was scrubbed before evaluation
 5. **Auditable process** - Clear separation between scrubbing and evaluation steps
 
-## Models Used
+## Provider Configuration
 
-- **Scrubber**: Claude Sonnet 4.5 (`claude-sonnet-4-5-20250929`)
-- **Evaluator**: Claude Sonnet 4.5 (`claude-sonnet-4-5-20250929`)
-
-Both use the latest Claude model for high-quality, intelligent processing.
+| Variable | Default | Description |
+|----------|---------|-------------|
+| `MODEL_PROVIDER` | `"anthropic"` | LLM provider: `"anthropic"` or `"openai"` |
+| `MODEL_NAME` | `"claude-sonnet-4-5-20250929"` | Model for both scrubber and evaluator. **Required** when provider is `"openai"`. |
+| `OPENAI_API_KEY` | (none) | Required when `MODEL_PROVIDER` is `"openai"` |
 
 ## Platform Compatibility
 
-This MCP server works with:
-- ✅ **Claude Desktop** (macOS, Windows, Linux)
-- ✅ **Claude Code** (VSCode extension)
-- ✅ **ChatGPT** (with Developer Mode enabled in Pro/Plus/Business/Enterprise)
-- ❌ **Gemini web chat** (gemini.google.com/app) - Does not support MCP
+This MCP server works with any MCP-compatible client, including:
+- **Claude Desktop** (macOS, Windows, Linux)
+- **Claude Code** (VSCode extension)
 
 ## How It Works
 

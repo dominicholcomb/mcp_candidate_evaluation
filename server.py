@@ -20,14 +20,15 @@ import anthropic
 # Initialize the MCP server
 mcp = FastMCP("candidate_evaluation_mcp")
 
-# Initialize Anthropic async client
-# API key should be set in environment variable ANTHROPIC_API_KEY
-client = anthropic.AsyncAnthropic(api_key=os.environ.get("ANTHROPIC_API_KEY"))
+# Provider and model configuration (configurable via env vars)
+MODEL_PROVIDER = os.environ.get("MODEL_PROVIDER", "anthropic").lower()
+_DEFAULT_ANTHROPIC_MODEL = "claude-sonnet-4-5-20250929"
+_env_model_name = os.environ.get("MODEL_NAME")
+SCRUBBER_MODEL = _env_model_name or _DEFAULT_ANTHROPIC_MODEL
+EVALUATOR_MODEL = _env_model_name or _DEFAULT_ANTHROPIC_MODEL
 
-# Model configuration
-# Using Claude Sonnet 4.5 (released Jan 2025)
-SCRUBBER_MODEL = "claude-sonnet-4-5-20250929"  # Fast, accurate for scrubbing
-EVALUATOR_MODEL = "claude-sonnet-4-5-20250929"  # Same model for evaluation
+# Lazy-initialized LLM client (set on first API call)
+_llm_client = None
 
 # Enums
 class ResponseFormat(str, Enum):
@@ -129,6 +130,79 @@ EVAL_HOST_INSTRUCTION = (
     "eliminate it, and the evaluating LLM may reflect biases from its training data."
 )
 
+def _validate_provider_config() -> Optional[str]:
+    """Check that provider, API key, and model are properly configured.
+
+    Returns a JSON error string if misconfigured, or None if valid.
+    """
+    if MODEL_PROVIDER == "anthropic":
+        if not os.environ.get("ANTHROPIC_API_KEY"):
+            return json.dumps({
+                "error": "ANTHROPIC_API_KEY environment variable not set. "
+                         "Please configure it in Claude Desktop config."
+            })
+    elif MODEL_PROVIDER == "openai":
+        if not os.environ.get("OPENAI_API_KEY"):
+            return json.dumps({
+                "error": "OPENAI_API_KEY environment variable not set. "
+                         "Please configure it in Claude Desktop config."
+            })
+        if SCRUBBER_MODEL == _DEFAULT_ANTHROPIC_MODEL and not _env_model_name:
+            return json.dumps({
+                "error": "MODEL_NAME environment variable is required when MODEL_PROVIDER is 'openai'. "
+                         "Set it to an OpenAI model name (e.g., 'gpt-4o')."
+            })
+    else:
+        return json.dumps({
+            "error": f"Unknown MODEL_PROVIDER: '{MODEL_PROVIDER}'. "
+                     "Supported values: 'anthropic', 'openai'."
+        })
+    return None
+
+
+def _get_llm_client():
+    """Lazily initialize and return the LLM API client."""
+    global _llm_client
+    if _llm_client is not None:
+        return _llm_client
+
+    if MODEL_PROVIDER == "openai":
+        try:
+            import openai
+        except ImportError:
+            raise RuntimeError(
+                "The 'openai' package is required when MODEL_PROVIDER is 'openai'. "
+                "Install it with: pip install openai>=1.0.0"
+            )
+        _llm_client = openai.AsyncOpenAI(api_key=os.environ.get("OPENAI_API_KEY"))
+    else:
+        _llm_client = anthropic.AsyncAnthropic(api_key=os.environ.get("ANTHROPIC_API_KEY"))
+
+    return _llm_client
+
+
+async def _call_llm(model: str, system_prompt: str, user_message: str, max_tokens: int) -> str:
+    """Route an LLM call to the configured provider and return the text response."""
+    client = _get_llm_client()
+
+    if MODEL_PROVIDER == "openai":
+        response = await client.responses.create(
+            model=model,
+            instructions=system_prompt,
+            input=user_message,
+            max_output_tokens=max_tokens,
+        )
+        return response.output_text
+    else:
+        message = await client.messages.create(
+            model=model,
+            max_tokens=max_tokens,
+            system=system_prompt,
+            messages=[{"role": "user", "content": user_message}],
+        )
+        return message.content[0].text
+
+
 # Shared utility functions
 def _get_scrubbing_prompt(categories: Optional[List[ProtectedCategory]] = None) -> str:
     """Generate the system prompt for the scrubbing LLM."""
@@ -184,21 +258,14 @@ async def _scrub_with_llm(text: str, categories: Optional[List[ProtectedCategory
     system_prompt = _get_scrubbing_prompt(categories)
 
     try:
-        message = await client.messages.create(
+        return await _call_llm(
             model=SCRUBBER_MODEL,
+            system_prompt=system_prompt,
+            user_message=f"Please scrub the following candidate information:\n\n{text}",
             max_tokens=8000,
-            system=system_prompt,
-            messages=[
-                {
-                    "role": "user",
-                    "content": f"Please scrub the following candidate information:\n\n{text}"
-                }
-            ]
         )
-
-        return message.content[0].text
     except Exception as e:
-        raise RuntimeError(f"Error calling Anthropic API for scrubbing: {str(e)}")
+        raise RuntimeError(f"Error calling LLM API for scrubbing: {str(e)}")
 
 async def _evaluate_with_llm(scrubbed_text: str, user_question: Optional[str] = None) -> str:
     """
@@ -256,21 +323,14 @@ Evaluate the candidate based on:
         user_message = f"Please evaluate this candidate:\n\n{scrubbed_text}"
 
     try:
-        message = await client.messages.create(
+        return await _call_llm(
             model=EVALUATOR_MODEL,
+            system_prompt=system_prompt,
+            user_message=user_message,
             max_tokens=4000,
-            system=system_prompt,
-            messages=[
-                {
-                    "role": "user",
-                    "content": user_message
-                }
-            ]
         )
-
-        return message.content[0].text
     except Exception as e:
-        raise RuntimeError(f"Error calling Anthropic API for evaluation: {str(e)}")
+        raise RuntimeError(f"Error calling LLM API for evaluation: {str(e)}")
 
 # Tool definitions
 @mcp.tool(
@@ -303,11 +363,10 @@ async def scrub_protected_characteristics(params: ScrubTextInput) -> str:
     Returns:
         str: Processed text with a disclaimer noting the limitations of this process.
     """
-    # Check for API key
-    if not os.environ.get("ANTHROPIC_API_KEY"):
-        return json.dumps({
-            "error": "ANTHROPIC_API_KEY environment variable not set. Please configure it in Claude Desktop config."
-        })
+    # Validate provider configuration
+    config_error = _validate_provider_config()
+    if config_error:
+        return config_error
 
     try:
         # Scrub the text using LLM
@@ -375,11 +434,10 @@ async def evaluate_scrubbed_candidate(params: EvaluateScrubbedInput) -> str:
     Returns:
         str: Evaluation based on scrubbed text, with a disclaimer noting limitations.
     """
-    # Check for API key
-    if not os.environ.get("ANTHROPIC_API_KEY"):
-        return json.dumps({
-            "error": "ANTHROPIC_API_KEY environment variable not set. Please configure it in Claude Desktop config."
-        })
+    # Validate provider configuration
+    config_error = _validate_provider_config()
+    if config_error:
+        return config_error
 
     try:
         # Evaluate with LLM (NO ACCESS to original text)
