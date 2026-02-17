@@ -264,6 +264,96 @@ python evaluation/test_llm_scrubbing.py
 python evaluation/test_unified_workflow.py
 ```
 
+## Benchmarking & Statistical Analysis
+
+A controlled benchmark framework measures whether the MCP scrubbing pipeline reduces demographic bias in LLM-based hiring evaluations compared to sending candidate data directly to the LLM. Full methodology is documented in [`evaluation/benchmark/APPROACH.md`](evaluation/benchmark/APPROACH.md).
+
+### Research Question
+
+When candidates have identical qualifications but different protected characteristics (race, gender), does the LLM show demographic preferences in selection and compensation tasks — and does the MCP pipeline reduce these preferences?
+
+### Experimental Design
+
+**Two benchmark versions** exist under `evaluation/benchmark/`:
+
+| Version | Arms | Names | Tasks |
+|---------|------|-------|-------|
+| **v1** (`runner.py`) | 3-arm (Raw Naive, Raw Matched, MCP) | Fixed names from audit study literature | Selection only |
+| **v2** (`runner_v2.py`) | 2-arm (Raw Naive, MCP) | Randomized from demographically-associated pools per trial | Selection + Salary recommendation |
+
+**Demographics**: 2 races (Black/White) x 2 genders (Male/Female) = 4 groups. Names drawn from audit study literature (Bertrand & Mullainathan 2004).
+
+**Three-arm design (v1)** isolates what drives bias reduction:
+
+| Arm | Description | What it isolates |
+|-----|-------------|-----------------|
+| **Raw Naive** | Full text with demographics, no system prompt | Baseline LLM bias |
+| **Raw Matched** | Full text with demographics, evaluator system prompt | Prompt-only effect |
+| **MCP Pipeline** | Scrubbed via `_scrub_with_llm()`, then evaluated via `_evaluate_with_llm()` | Full pipeline effect |
+
+**Controls:**
+- **Order counterbalancing** — every candidate pair runs in both orderings to control for first-position bias
+- **Constant qualifications** — only demographics vary between paired candidates
+- **Same model** — all arms use `claude-haiku-4-5-20251001`
+- **Default temperature** (1.0) — captures natural LLM variance; N=30 per cell provides statistical power
+
+### Test Case Matrix (v1)
+
+- 6 unique demographic pairs x 2 orderings x 3 criteria tiers x 2 roles = **72 configs per arm**
+- 3 arms x 72 configs x N=30 repetitions = **6,480 total trials**
+
+### Evaluation Criteria
+
+Three criteria tiers test interaction with gender stereotypes:
+
+| Tier | Criteria | Purpose |
+|------|----------|---------|
+| Female-stereotyped | "nurturing and gentle" | Tests gender-stereotype alignment |
+| Male-stereotyped | "tough and logical" | Tests gender-stereotype alignment |
+| Neutral | "technically proficient" | Baseline without stereotype loading |
+
+### Statistical Methods
+
+- **Binomial test** against 50% for each pairwise comparison
+- **Chi-squared test** across all groups within an arm
+- **EEOC four-fifths rule** — flags any comparison where selection rate ratio < 0.80 (adverse impact threshold)
+- **Wilson score confidence intervals** (95%) for all reported proportions (v2)
+
+### Analysis & Visualization
+
+Results are analyzed in two Jupyter notebooks:
+
+- **[`analysis.ipynb`](evaluation/benchmark/analysis.ipynb)** (v1) — 14 visualization sections including response classification, selection rates by demographic group, race and gender disparity, pairwise comparisons, criteria-stereotype interaction, first-position bias, role interaction, full interaction heatmap, EEOC four-fifths rule check, binomial significance tests, and bias reduction summary
+- **[`demo_plots.ipynb`](evaluation/benchmark/demo_plots.ipynb)** (v2) — 3 demo plots with Wilson confidence intervals covering selection rate by race, selection rate by gender, and salary recommendation completion by demographic group
+
+### Running the Benchmark
+
+```bash
+# Preview without API calls
+python3 evaluation/benchmark/runner.py --dry-run
+
+# Quick single-arm test
+python3 evaluation/benchmark/runner.py --n 1 --arms raw_naive
+
+# Full v1 run (~$3.50, ~25 min)
+python3 evaluation/benchmark/runner.py --n 30 --concurrency 10
+
+# v2 with randomized names
+python3 evaluation/benchmark/runner_v2.py --n 6 --concurrency 10
+
+# Execute analysis notebooks
+cd evaluation/benchmark && jupyter nbconvert --to notebook --execute analysis.ipynb --output analysis_executed.ipynb
+cd evaluation/benchmark && jupyter nbconvert --to notebook --execute demo_plots.ipynb --output demo_plots_executed.ipynb
+```
+
+### Limitations
+
+- Tests one model (Haiku 4.5) at one point in time; production uses Sonnet 4.5
+- Names carry multiple signals (race, gender, class) that cannot be fully isolated
+- "Names + labels" is the strongest demographic signal; real resumes are more subtle
+- Stereotyped criteria represent extreme cases to surface bias; real job criteria are more nuanced
+- N=30 per cell detects large effects (~20pp); moderate effects may be missed
+
 ## Architecture
 
 ### Why Two Separate LLMs?
