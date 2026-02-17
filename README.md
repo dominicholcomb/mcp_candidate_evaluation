@@ -325,9 +325,9 @@ To reduce the presence of protected characteristics in evaluation, we use comple
 
 | Variable | Default | Description |
 |----------|---------|-------------|
-| `ANTHROPIC_API_KEY` | (none) | Required when `MODEL_PROVIDER` is `"anthropic"` (default) |
 | `MODEL_PROVIDER` | `"anthropic"` | LLM provider: `"anthropic"` or `"openai"` |
 | `MODEL_NAME` | `"claude-sonnet-4-5-20250929"` | Model for both scrubber and evaluator. **Required** when provider is `"openai"`. |
+| `ANTHROPIC_API_KEY` | (none) | Required when `MODEL_PROVIDER` is `"anthropic"` (default) |
 | `OPENAI_API_KEY` | (none) | Required when `MODEL_PROVIDER` is `"openai"` |
 
 ## Platform Compatibility
