@@ -332,9 +332,11 @@ To reduce the presence of protected characteristics in evaluation, we use comple
 
 ## Platform Compatibility
 
-This MCP server works with any MCP-compatible client, including:
+This server uses MCP's **stdio transport** (launched as a local subprocess), so it currently works with:
 - **Claude Desktop** (macOS, Windows, Linux)
 - **Claude Code** (VSCode extension)
+
+Integration with ChatGPT, agentic coding tools, and other MCP clients would require adding HTTP/SSE transport. This may be added in the future if there is interest.
 
 ## How It Works
 
