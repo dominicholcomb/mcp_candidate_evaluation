@@ -25,6 +25,9 @@ evaluation/benchmark/*_executed.ipynb
 *.swp
 *.swo
 
+# Video demos
+*.mp4
+
 # OS
 .DS_Store
 Thumbs.db
